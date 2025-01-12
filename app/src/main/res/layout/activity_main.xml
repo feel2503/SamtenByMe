@@ -15,20 +15,39 @@
         android:layout_height="match_parent"
         tools:ignore="UselessParent">
 
+
         <Button
             android:id="@+id/btn_open"
-            style="?android:attr/buttonBarButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="@string/dummy_button" />
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:text="MP4 File 을 선택하세요" />
 
         <com.google.android.exoplayer2.ui.StyledPlayerView
             android:id="@+id/video_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:use_controller="false"
-            android:visibility="gone" />
+            android:visibility="visible" />
+
+        <WebView
+            android:id="@+id/webview_1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/transparent"
+            android:visibility="gone"
+            />
+
+        <WebView
+            android:id="@+id/webview_2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/transparent"
+            android:visibility="gone"
+            />
+
 
     </RelativeLayout>
 
