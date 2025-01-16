@@ -6,6 +6,7 @@ import android.annotation.SuppressLint;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -193,6 +194,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        if(exoPlayer.isPlaying()){
+            exoPlayer.stop();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if(exoPlayer.isPlaying()){
@@ -266,20 +275,73 @@ public class MainActivity extends AppCompatActivity {
         mButtonOpen.setVisibility(View.GONE);
         if(webPageItem != null)
         {
-            if(webPageItem.getUrl_1() != null && webPageItem.getUrl_1().length() > 0)
+            if(webPageItem.getUrl1() != null)
             {
-                webView1.setVisibility(View.VISIBLE);
-                webView1.loadUrl(webPageItem.getUrl_1());
+                if(webPageItem.getUrl1().getUrl() != null && webPageItem.getUrl1().url.length() > 0)
+                {
+                    webView1.setVisibility(View.VISIBLE);
+
+                    // LayoutParams를 View에 설정
+                    webView1.setLayoutParams(getLayoutparams(webPageItem.getUrl1()));
+                    webView1.loadUrl(webPageItem.getUrl1().getUrl());
+                }
             }
 
-            if(webPageItem.getUrl_2() != null && webPageItem.getUrl_2().length() > 0)
+            if(webPageItem.getUrl2() != null)
             {
-                webView2.setVisibility(View.VISIBLE);
-                webView2.loadUrl(webPageItem.getUrl_2());
+                if(webPageItem.getUrl2().getUrl() != null && webPageItem.getUrl2().getUrl().length() > 0)
+                {
+                    webView2.setVisibility(View.VISIBLE);
+
+                    // LayoutParams를 View에 설정
+                    webView2.setLayoutParams(getLayoutparams(webPageItem.getUrl2()));
+                    webView2.loadUrl(webPageItem.getUrl2().getUrl());
+                }
             }
+
         }
     }
 
+    private ConstraintLayout.LayoutParams getLayoutparams(Webpage webpage)
+    {
+        ConstraintLayout.LayoutParams layoutParams = new ConstraintLayout.LayoutParams(
+                0, // width: 0dp
+                ConstraintLayout.LayoutParams.MATCH_PARENT // height: match_parent
+        );
+
+        // Constraint 속성 정의
+        layoutParams.matchConstraintPercentWidth = getPercentValue(webpage.getWidth()); // app:layout_constraintWidth_percent="0.3"
+        if(webpage.getPosition().equalsIgnoreCase("left"))
+        {
+            layoutParams.startToStart = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 시작과 맞춤
+            layoutParams.topToTop = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 위쪽
+            layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 아래쪽
+        }
+        else if(webpage.getPosition().equalsIgnoreCase("right"))
+        {
+            layoutParams.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 오른쪽 끝
+            layoutParams.topToTop = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 위쪽
+            layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 아래쪽
+        }
+        else
+        {
+            layoutParams.startToStart = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 시작과 맞춤
+            layoutParams.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID;     // 부모 끝과 맞춤
+            layoutParams.topToTop = ConstraintLayout.LayoutParams.PARENT_ID;     // 부모 위쪽과 맞춤
+            layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID;
+        }
+
+        return layoutParams;
+    }
+
+    private float getPercentValue(int value){
+        float result = (float)value/ 100.f;
+        if(result > 1.0f)
+            result = 1.0f;
+        else if(result < 0.0f)
+            result = 0.0f;
+        return result;
+    }
 
 
     private void readDefaultConfig()

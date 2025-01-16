@@ -3,8 +3,8 @@ plugins {
 }
 
 ext {
-    AppVersionCode = 10000
-    AppVersionName = "1.0.0"
+    AppVersionCode = 10001
+    AppVersionName = "1.0.1"
 }
 
 android {
@@ -22,10 +22,10 @@ android {
 
     defaultConfig {
         applicationId "kr.co.thiscat.samtenbyme"
-        minSdk 28
+        minSdk 30
         targetSdk 31
-        versionCode 1
-        versionName "1.0"
+        versionCode AppVersionCode
+        versionName AppVersionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
