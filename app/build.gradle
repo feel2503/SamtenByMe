@@ -3,8 +3,8 @@ plugins {
 }
 
 ext {
-    AppVersionCode = 10001
-    AppVersionName = "1.0.1"
+    AppVersionCode = 10002
+    AppVersionName = "1.0.2"
 }
 
 android {

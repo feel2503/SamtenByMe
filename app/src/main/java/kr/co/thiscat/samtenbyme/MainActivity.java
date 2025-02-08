@@ -10,6 +10,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Build;
@@ -26,6 +27,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.google.android.exoplayer2.ExoPlayer;
@@ -53,12 +57,22 @@ public class MainActivity extends AppCompatActivity {
     public static String contentDirPath = Environment.getExternalStoragePublicDirectory(
             Environment.DIRECTORY_DOWNLOADS) + "/StadiumAmp/";
 
+    private PreferenceUtil mPreferenceUtil;
+
 
     private ActivityMainBinding binding;
     private View mControlsView;
 
 
     private Button mButtonOpen;
+    private LinearLayout mLinearSettings;
+    private CheckBox mCheckUrl1;
+    private CheckBox mCheckUrl2;
+    private CheckBox mCheckReverse;
+
+    private boolean mIsShowUrl1;
+    private boolean mIsShowUrl2;
+    private boolean mIsReverse;
 
     private StyledPlayerView playerView;
     private ExoPlayer exoPlayer;
@@ -86,19 +100,37 @@ public class MainActivity extends AppCompatActivity {
         mControlsView = binding.fullscreenContentControls;
         hide();
 
+        mPreferenceUtil = new PreferenceUtil(MainActivity.this);
+
         playerView = findViewById(R.id.video_view);
         exoPlayer = new ExoPlayer.Builder(MainActivity.this).build();
         exoPlayer.addListener(mPlayerListener);
         playerView.setPlayer(exoPlayer);
 
+
+        mLinearSettings = findViewById(R.id.linear_settings);
         mButtonOpen = findViewById(R.id.btn_open);
         mButtonOpen.setOnClickListener(mOnClickListener);
+        mCheckUrl1 = findViewById(R.id.checkbox_url1);
+        mCheckUrl1.setOnCheckedChangeListener(mOnCheckedChangedListener);
+        mCheckUrl2 = findViewById(R.id.checkbox_url2);
+        mCheckUrl2.setOnCheckedChangeListener(mOnCheckedChangedListener);
+        mCheckReverse = findViewById(R.id.checkbox_reverse);
+        mCheckReverse.setOnCheckedChangeListener(mOnCheckedChangedListener);
+
+        mIsShowUrl1 = mPreferenceUtil.getBooleanPreference(PreferenceUtil.KEY_SHOW_URL1);
+        mIsShowUrl2 = mPreferenceUtil.getBooleanPreference(PreferenceUtil.KEY_SHOW_URL2);
+        mIsReverse = mPreferenceUtil.getBooleanPreference(PreferenceUtil.KEY_REVERSE);
+        mCheckUrl1.setChecked(mIsShowUrl1);
+        mCheckUrl2.setChecked(mIsShowUrl2);
+        mCheckReverse.setChecked(mIsReverse);
 
         webView1 = findViewById(R.id.webview_1);
 
         webView1.setBackgroundColor(0); // 완전 투명
         webView1.setLayerType(View.LAYER_TYPE_SOFTWARE, null); // 소프트웨어 렌더링 사용
-        webView1.setScaleX(-1);
+        if(mIsReverse)
+            webView1.setScaleX(-1);
 
         webView1.setWebViewClient(new WebViewClient()); // 현재 앱을 나가서 새로운 브라우저를 열지 않도록 함.
 
@@ -113,21 +145,23 @@ public class MainActivity extends AppCompatActivity {
         mWebSettings1.setDisplayZoomControls(true); //화면 확대 축소시, webview에서 확대/축소 컨트롤 표시 여부
         mWebSettings1.setCacheMode(WebSettings.LOAD_NO_CACHE); // 브라우저 캐시 사용 재정의 value : LOAD_DEFAULT, LOAD_NORMAL, LOAD_CACHE_ELSE_NETWORK, LOAD_NO_CACHE, or LOAD_CACHE_ONLY
         mWebSettings1.setDefaultFixedFontSize(14); //기본 고정 글꼴 크기, value : 1~72 사이의 숫자
+        mWebSettings1.setMediaPlaybackRequiresUserGesture(false);
+
 
         // HTML 로드
 //        String htmlContent = "<html><body style='background-color:transparent; margin:0; padding:0;'>"
 //                + "<h1 style='color:blue;'>Hello, Transparent WebView!</h1>"
 //                + "</body></html>";
 //        webView1.loadData(htmlContent, "text/html", "UTF-8");
-
-
         webView1.setVisibility(View.VISIBLE);
+
 
         webView2 = findViewById(R.id.webview_2);
 
         webView2.setBackgroundColor(0); // 완전 투명
         webView2.setLayerType(View.LAYER_TYPE_SOFTWARE, null); // 소프트웨어 렌더링 사용
-        webView2.setScaleX(-1);
+        if(mIsReverse)
+            webView2.setScaleX(-1);
 
         webView2.setWebViewClient(new WebViewClient()); // 현재 앱을 나가서 새로운 브라우저를 열지 않도록 함.
 
@@ -142,6 +176,8 @@ public class MainActivity extends AppCompatActivity {
         mWebSettings2.setDisplayZoomControls(true); //화면 확대 축소시, webview에서 확대/축소 컨트롤 표시 여부
         mWebSettings2.setCacheMode(WebSettings.LOAD_NO_CACHE); // 브라우저 캐시 사용 재정의 value : LOAD_DEFAULT, LOAD_NORMAL, LOAD_CACHE_ELSE_NETWORK, LOAD_NO_CACHE, or LOAD_CACHE_ONLY
         mWebSettings2.setDefaultFixedFontSize(14); //기본 고정 글꼴 크기, value : 1~72 사이의 숫자
+        mWebSettings2.setMediaPlaybackRequiresUserGesture(false);
+
 
         readDefaultConfig();
 
@@ -199,7 +235,10 @@ public class MainActivity extends AppCompatActivity {
         if(exoPlayer.isPlaying()){
             exoPlayer.stop();
         }
+
+        finish();
     }
+
 
     @Override
     protected void onDestroy() {
@@ -207,6 +246,7 @@ public class MainActivity extends AppCompatActivity {
         if(exoPlayer.isPlaying()){
             exoPlayer.stop();
         }
+
     }
 
     private void openFile()
@@ -272,13 +312,19 @@ public class MainActivity extends AppCompatActivity {
         exoPlayer.prepare();
         exoPlayer.play(); //자동으로 로딩완료까지 기다렸다가 재생함
 
-        mButtonOpen.setVisibility(View.GONE);
+        //mButtonOpen.setVisibility(View.GONE);
+        mLinearSettings.setVisibility(View.GONE);
         if(webPageItem != null)
         {
-            if(webPageItem.getUrl1() != null)
+            if(webPageItem.getUrl1() != null && mIsShowUrl1)
             {
                 if(webPageItem.getUrl1().getUrl() != null && webPageItem.getUrl1().url.length() > 0)
                 {
+
+                    if(webPageItem.getUrl1().getUrl().startsWith("https://www.youtube.com"))
+                    {
+                        webView1.setLayerType(View.LAYER_TYPE_HARDWARE, null); // 소프트웨어 렌더링 사용
+                    }
                     webView1.setVisibility(View.VISIBLE);
 
                     // LayoutParams를 View에 설정
@@ -287,10 +333,15 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-            if(webPageItem.getUrl2() != null)
+            if(webPageItem.getUrl2() != null && mIsShowUrl2)
             {
                 if(webPageItem.getUrl2().getUrl() != null && webPageItem.getUrl2().getUrl().length() > 0)
                 {
+                    if(webPageItem.getUrl2().getUrl().startsWith("https://www.youtube.com"))
+                    {
+                        webView2.setLayerType(View.LAYER_TYPE_HARDWARE, null); // 소프트웨어 렌더링 사용
+                    }
+
                     webView2.setVisibility(View.VISIBLE);
 
                     // LayoutParams를 View에 설정
@@ -402,33 +453,44 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onClick(View v) {
             if(v.getId() == R.id.btn_open){
-//                String path = Environment.getExternalStorageDirectory() + "/" + "Downloads" + "/";
-//                Uri uri = Uri.parse(path);
-//                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-//                intent.addCategory(Intent.CATEGORY_OPENABLE);
-//                intent.setDataAndType(uri, "video/*");
-//                startActivityForResult(intent, 1);
-
-//                Intent intent = new Intent();
-//                intent.setClassName("com.mobisystems.fileman", "com.mobisystems.files.FcFileBrowserWithDrawer");
-//                startActivityForResult(intent, 1);
-
-//                Intent intent = getPackageManager().getLaunchIntentForPackage("com.mobisystems.fileman");
-//                if (intent != null) {
-//                    startActivity(intent);
-//                } else {
-//                    Toast.makeText(MainActivity.this, "File manager app is not installed.", Toast.LENGTH_SHORT).show();
-//                }
-
-//                Intent intent = new Intent(Intent.ACTION_VIEW);
-//                intent.setType("*/*");
-//                intent.addCategory(Intent.CATEGORY_DEFAULT);
-//                startActivityForResult(intent, 1);
-
                 openFile();
-
             }
 
+        }
+    };
+
+    private CompoundButton.OnCheckedChangeListener mOnCheckedChangedListener = new CompoundButton.OnCheckedChangeListener() {
+        @Override
+        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+            if(buttonView.getId() == R.id.checkbox_url1)
+            {
+                mPreferenceUtil.putBooleanPreference(PreferenceUtil.KEY_SHOW_URL1, isChecked);
+                mIsShowUrl1 = isChecked;
+            }
+            if(buttonView.getId() == R.id.checkbox_url2)
+            {
+                mPreferenceUtil.putBooleanPreference(PreferenceUtil.KEY_SHOW_URL2, isChecked);
+                mIsShowUrl2 = isChecked;
+            }
+            if(buttonView.getId() == R.id.checkbox_reverse)
+            {
+                mPreferenceUtil.putBooleanPreference(PreferenceUtil.KEY_REVERSE, isChecked);
+                mIsReverse = isChecked;
+
+                if(webView1 != null && webView2 != null)
+                {
+                    if(mIsReverse)
+                    {
+                        webView1.setScaleX(-1);
+                        webView2.setScaleX(-1);
+                    }
+                    else
+                    {
+                        webView1.setScaleX(1);
+                        webView2.setScaleX(1);
+                    }
+                }
+            }
         }
     };
 

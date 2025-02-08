@@ -33,6 +33,7 @@
             android:name=".MainActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="true"
+            android:hardwareAccelerated="true"
             android:theme="@style/Theme.SamtenByMe.Fullscreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
