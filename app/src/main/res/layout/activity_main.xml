@@ -49,37 +49,51 @@
 
         <LinearLayout
             android:id="@+id/linear_settings"
-            android:layout_width="wrap_content"
+            android:layout_width="300dp"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:orientation="vertical">
             <Button
                 android:id="@+id/btn_open"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="10dp"
                 android:layout_gravity="left"
+                android:focusedByDefault="true"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
+                android:background="@drawable/bg_round_white"
+                android:textColor="@color/white"
                 android:text="MP4 File 을 선택하세요" />
 
             <CheckBox
                 android:id="@+id/checkbox_url1"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:background="@drawable/bg_round_06141f"
                 android:textColor="@color/white"
                 android:text="URL1 보이기"/>
             <CheckBox
                 android:id="@+id/checkbox_url2"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:background="@drawable/bg_round_06141f"
                 android:textColor="@color/white"
                 android:text="URL2 보이기"/>
             <CheckBox
                 android:id="@+id/checkbox_reverse"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
                 android:layout_marginTop="30dp"
+                android:background="@drawable/bg_round_06141f"
                 android:textColor="@color/white"
                 android:text="Web 좌우반전"/>
         </LinearLayout>
