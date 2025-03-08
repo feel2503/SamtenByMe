@@ -128,7 +128,7 @@ public class MainActivity extends AppCompatActivity {
         webView1 = findViewById(R.id.webview_1);
 
         webView1.setBackgroundColor(0); // 완전 투명
-        webView1.setLayerType(View.LAYER_TYPE_SOFTWARE, null); // 소프트웨어 렌더링 사용
+        webView1.setLayerType(View.LAYER_TYPE_HARDWARE, null); // 소프트웨어 렌더링 사용
         if(mIsReverse)
             webView1.setScaleX(-1);
 
@@ -159,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
         webView2 = findViewById(R.id.webview_2);
 
         webView2.setBackgroundColor(0); // 완전 투명
-        webView2.setLayerType(View.LAYER_TYPE_SOFTWARE, null); // 소프트웨어 렌더링 사용
+        webView2.setLayerType(View.LAYER_TYPE_HARDWARE, null); // 소프트웨어 렌더링 사용
         if(mIsReverse)
             webView2.setScaleX(-1);
 
