@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube 검색 + 모달 재생 + fallback (롤백 버전)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #fafafa;
+    }
+    /* 검색 영역 */
+    #search-container {
+      margin-bottom: 20px;
+    }
+    #search-input {
+      padding: 8px;
+      width: 300px;
+      font-size: 16px;
+    }
+    #search-button {
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    /* 검색 결과 그리드 레이아웃 */
+    #results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-gap: 15px;
+    }
+    .video-item {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      background-color: #fff;
+    }
+    .video-item img {
+      max-width: 100%;
+      height: auto;
+    }
+    /* 포커스 스타일 */
+    .video-item:focus,
+    #search-button:focus,
+    #search-input:focus {
+      outline: none;
+      border-color: red;
+      background-color: #f9f9f9;
+    }
+    /* 모달 스타일 */
+    #modal {
+      display: none;  /* 기본 숨김 */
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #modal-content {
+      position: relative;
+      background: #000;
+      max-width: 800px;
+      width: 90%;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    /* YouTube IFrame 삽입 영역 */
+    #player {
+      width: 100%;
+      height: 450px;
+    }
+    #close-modal {
+      position: absolute;
+      top: 5px; right: 10px;
+      font-size: 24px;
+      color: #fff;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      z-index: 1100;
+    }
+  </style>
+  <!-- YouTube IFrame Player API 로드 -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body>
+  <!-- 검색 영역 -->
+  <div id="search-container">
+    <input id="search-input" type="text" placeholder="검색어를 입력하세요">
+    <button id="search-button">검색</button>
+  </div>
+  
+  <!-- 검색 결과 출력 영역 -->
+  <div id="results"></div>
+  
+  <!-- 모달 영역 -->
+  <div id="modal">
+    <div id="modal-content">
+      <button id="close-modal" aria-label="Close Modal">&times;</button>
+      <div id="player"></div>
+    </div>
+  </div>
+  
+  <script>
+    // ※ 실제 API 키로 변경하세요.
+    const API_KEY = 'AIzaSyAKhRQgY2CIEEp5DUnZj4YQCFK54PvFXaY';
+    
+    const columns = 3;
+    let currentRow = 0, currentCol = 0;
+    let totalRows = 0, totalElements = 0;
+    
+    // YouTube IFrame 플레이어 (모달 내 영상 재생 제어)
+    let player;
+    let currentVideoId = null;
+    
+    // fallback 창의 참조 (데스크탑 fallback용)
+    let fallbackWindow = null;
+    
+    // 검색 버튼 이벤트
+    document.getElementById('search-button').addEventListener('click', () => {
+      const query = document.getElementById('search-input').value.trim();
+      if(query) {
+        searchYouTube(query);
+      }
+    });
+    
+    function searchYouTube(query) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = 'Loading...';
+      const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&key=${API_KEY}&maxResults=30&type=video`;
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          resultsDiv.innerHTML = '';
+          const items = data.items;
+          totalElements = items.length;
+          totalRows = Math.ceil(totalElements / columns);
+          items.forEach((item, index) => {
+            const videoId = item.id.videoId;
+            const title = item.snippet.title;
+            const thumb = item.snippet.thumbnails.medium.url;
+            const videoDiv = document.createElement('div');
+            videoDiv.className = 'video-item';
+            videoDiv.tabIndex = 0;
+            videoDiv.dataset.index = index;
+            videoDiv.dataset.row = Math.floor(index / columns);
+            videoDiv.dataset.col = index % columns;
+            videoDiv.dataset.videoId = videoId;
+            videoDiv.innerHTML = `<img src="${thumb}" alt="${title}"><br>${title}`;
+            videoDiv.addEventListener('click', () => {
+              openModal(videoId);
+            });
+            resultsDiv.appendChild(videoDiv);
+          });
+          const firstVideo = document.querySelector('.video-item');
+          if(firstVideo) {
+            firstVideo.focus();
+            currentRow = 0;
+            currentCol = 0;
+          }
+        })
+        .catch(error => {
+          resultsDiv.innerHTML = 'Error fetching results.';
+          console.error(error);
+        });
+    }
+    
+    // YouTube IFrame API 콜백 — 플레이어 생성
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        height: '450',
+        width: '100%',
+        videoId: '',
+        playerVars: {
+          'autoplay': 0,
+          'controls': 1,
+          'fs': 1
+        },
+        events: {
+          'onError': onPlayerError
+        }
+      });
+    }
+    
+    // IFrame 플레이어 에러 처리: 에러 코드 101 또는 150이면 fallback 실행
+    function onPlayerError(event) {
+      const errorCode = event.data;
+      if(errorCode === 101 || errorCode === 150) {
+        closeModal();
+        fallbackOpenNewWindow(currentVideoId);
+      }
+    }
+    
+    // 모달 열기: 선택한 videoId로 플레이어 로드 후 모달 표시
+    function openModal(videoId) {
+      currentVideoId = videoId;
+      const modal = document.getElementById('modal');
+      if(player && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(videoId);
+      }
+      modal.style.display = 'flex';
+    }
+    
+    // 모달 닫기: 플레이어 정지 후 모달 숨김
+    function closeModal() {
+      const modal = document.getElementById('modal');
+      if(player) {
+        player.stopVideo();
+      }
+      if(document.fullscreenElement) {
+        document.exitFullscreen();
+      }
+      modal.style.display = 'none';
+    }
+    
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    
+    // fallbackOpenNewWindow: IFrame 에러 시 fallback 창을 띄워
+    // 데스크탑에서는 공식 YouTube 영상 페이지(https://www.youtube.com/watch?v=VIDEO_ID),
+    // 모바일(안드로이드)에서는 m.youtube.com 페이지를 열어 재생되게 합니다.
+    function fallbackOpenNewWindow(videoId) {
+      let fallbackUrl = "";
+      const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+      if(isMobile) {
+        fallbackUrl = "https://m.youtube.com/watch?v=" + videoId;
+      } else {
+        fallbackUrl = "https://www.youtube.com/watch?v=" + videoId;
+      }
+      fallbackWindow = window.open(fallbackUrl, "youtubeFallback", "width=800,height=450");
+      if(!fallbackWindow) {
+        alert("팝업 차단되어 새 창을 열 수 없습니다. 팝업 차단을 해제해주세요.");
+      }
+    }
+    
+    // 부모 창의 글로벌 키 이벤트 — 데스크탑 fallback 창에 대해 처리
+    document.addEventListener('keydown', function(event) {
+      // fallback 창이 열려 있으면 ESC 또는 Backspace로 창 닫기
+      if(fallbackWindow && !fallbackWindow.closed && (event.key === 'Escape' || event.key === 'Backspace')) {
+        fallbackWindow.close();
+        fallbackWindow = null;
+        event.preventDefault();
+        return;
+      }
+      
+      const focused = document.activeElement;
+      const modal = document.getElementById('modal');
+      
+      // 모달 모드에서 처리 (리모컨의 OK, Back, 방향키)
+      if(modal.style.display === 'flex') {
+        if(event.key === 'Escape' || event.key === 'Backspace') {
+          closeModal();
+          event.preventDefault();
+          return;
+        }
+        if(event.key === 'Enter') { // OK 버튼
+          const iframe = player.getIframe();
+          if(!document.fullscreenElement) {
+            iframe.requestFullscreen().catch(err => {
+              console.error("전체화면 요청 실패:", err.message);
+            });
+          } else {
+            document.exitFullscreen();
+          }
+          event.preventDefault();
+          return;
+        }
+        if(player && typeof player.getVolume === 'function') {
+          if(event.key === 'ArrowUp') {
+            let vol = player.getVolume();
+            player.setVolume(Math.min(vol + 10, 100));
+            event.preventDefault();
+            return;
+          } else if(event.key === 'ArrowDown') {
+            let vol = player.getVolume();
+            player.setVolume(Math.max(vol - 10, 0));
+            event.preventDefault();
+            return;
+          } else if(event.key === 'ArrowRight') {
+            const curTime = player.getCurrentTime();
+            player.seekTo(curTime + 5, true);
+            event.preventDefault();
+            return;
+          } else if(event.key === 'ArrowLeft') {
+            const curTime = player.getCurrentTime();
+            player.seekTo(Math.max(curTime - 5, 0), true);
+            event.preventDefault();
+            return;
+          }
+        }
+        return;
+      }
+      
+      // 그리드 모드 처리
+      if(event.key === 'Enter') {
+        if(focused && (focused.classList.contains('video-item') || focused.id === 'search-button')) {
+          focused.click();
+          event.preventDefault();
+          return;
+        }
+      }
+      if(event.key === 'Escape' || event.key === 'Backspace') {
+        if(focused && focused.classList.contains('video-item')) {
+          document.getElementById('search-input').focus();
+          event.preventDefault();
+          return;
+        }
+      }
+      if(focused && focused.classList.contains('video-item')) {
+        switch(event.key) {
+          case 'ArrowUp':
+            if(currentRow > 0) {
+              currentRow--;
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          case 'ArrowDown':
+            if(currentRow < totalRows - 1) {
+              if((currentRow + 1) * columns + currentCol < totalElements) {
+                currentRow++;
+              }
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          case 'ArrowLeft':
+            if(currentCol > 0) {
+              currentCol--;
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          case 'ArrowRight':
+            if(currentCol < columns - 1) {
+              if(currentRow * columns + currentCol + 1 < totalElements) {
+                currentCol++;
+              }
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    });
+    
+    function setVideoFocus(row, col) {
+      const video = document.querySelector(`.video-item[data-row='${row}'][data-col='${col}']`);
+      if(video) {
+        video.focus();
+      }
+    }
+  </script>
+</body>
+</html>

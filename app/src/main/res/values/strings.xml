@@ -3,4 +3,6 @@
     <string name="title_activity_main">MainActivity</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="title_activity_land_view">LandViewActivity</string>
+    <string name="title_activity_port_view">PortViewActivity</string>
 </resources>

@@ -9,9 +9,11 @@ public class PreferenceUtil
     private SharedPreferences mPref;
     private Context mContext;
 
+    public static final String KEY_USER_NUM = "User Num";
     public static final String KEY_SHOW_URL1 = "Show URL 1";
     public static final String KEY_SHOW_URL2 = "Show URL 2";
     public static final String KEY_REVERSE = "Reverse View";
+    public static final String KEY_DISPLAY_RATE = "Display Rate";
 
     public PreferenceUtil(Context context)
     {

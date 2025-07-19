@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube 검색 + 모달 재생 + 키 이벤트 예제</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #fafafa;
+    }
+    /* 검색 영역 */
+    #search-container {
+      margin-bottom: 20px;
+    }
+    #search-input {
+      padding: 8px;
+      width: 300px;
+      font-size: 16px;
+    }
+    #search-button {
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    /* 검색 결과 그리드 레이아웃 */
+    #results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-gap: 15px;
+    }
+    .video-item {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      background-color: #fff;
+    }
+    .video-item img {
+      max-width: 100%;
+      height: auto;
+    }
+    /* 포커스 스타일 */
+    .video-item:focus,
+    #search-button:focus,
+    #search-input:focus {
+      outline: none;
+      border-color: red;
+      background-color: #f9f9f9;
+    }
+    /* 모달 스타일 */
+    #modal {
+      display: none; /* 기본 숨김 */
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #modal-content {
+      position: relative;
+      background: #000;
+      max-width: 800px;
+      width: 90%;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    /* YouTube IFrame을 삽입할 영역 */
+    #player {
+      width: 100%;
+      height: 450px;
+    }
+    #close-modal {
+      position: absolute;
+      top: 5px;
+      right: 10px;
+      font-size: 24px;
+      color: #fff;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      z-index: 1100;
+    }
+  </style>
+  <!-- YouTube IFrame Player API 로드 -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body>
+  <!-- 검색 영역 -->
+  <div id="search-container">
+    <input id="search-input" type="text" placeholder="검색어를 입력하세요">
+    <button id="search-button">검색</button>
+  </div>
+  
+  <!-- 검색 결과 출력 영역 -->
+  <div id="results"></div>
+
+  <!-- 모달 영역 -->
+  <div id="modal">
+    <div id="modal-content">
+      <button id="close-modal" aria-label="Close Modal">&times;</button>
+      <div id="player"></div>
+    </div>
+  </div>
+
+  <script>
+    // [YOUR_API_KEY] 에 발급받은 YouTube Data API 키를 입력하세요.
+    const API_KEY = 'AIzaSyAKhRQgY2CIEEp5DUnZj4YQCFK54PvFXaY';
+    
+    const columns = 3; // 그리드 열 수
+    let currentRow = 0, currentCol = 0;
+    let totalRows = 0, totalElements = 0;
+    
+    // YouTube Player 객체 (모달 내 재생 제어에 사용)
+    let player;
+    let currentVideoId = null;
+
+    // 검색 버튼 클릭 시 API 호출
+    document.getElementById('search-button').addEventListener('click', () => {
+      const query = document.getElementById('search-input').value.trim();
+      if(query) {
+        searchYouTube(query);
+      }
+    });
+    
+    function searchYouTube(query) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = 'Loading...';
+      
+      // YouTube Data API URL: 최대 20개 동영상, video 타입만 검색
+      const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&key=${API_KEY}&maxResults=20&type=video`;
+      
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          resultsDiv.innerHTML = '';
+          const items = data.items;
+          totalElements = items.length;
+          totalRows = Math.ceil(totalElements / columns);
+          
+          items.forEach((item, index) => {
+            const videoId = item.id.videoId;
+            const title = item.snippet.title;
+            const thumb = item.snippet.thumbnails.medium.url;
+            
+            const videoDiv = document.createElement('div');
+            videoDiv.className = 'video-item';
+            videoDiv.tabIndex = 0;
+            // 그리드 내 위치 표시
+            videoDiv.dataset.index = index;
+            videoDiv.dataset.row = Math.floor(index / columns);
+            videoDiv.dataset.col = index % columns;
+            videoDiv.dataset.videoId = videoId;
+            
+            videoDiv.innerHTML = `
+              <img src="${thumb}" alt="${title}">
+              <br>
+              ${title}
+            `;
+            
+            // 클릭 또는 Enter(OK) 시 모달 열기
+            videoDiv.addEventListener('click', () => {
+              openModal(videoId);
+            });
+            
+            resultsDiv.appendChild(videoDiv);
+          });
+          
+          // 검색 결과가 있으면 첫 번째 항목에 포커스
+          const firstVideo = document.querySelector('.video-item');
+          if (firstVideo) {
+            firstVideo.focus();
+            currentRow = 0;
+            currentCol = 0;
+          }
+        })
+        .catch(error => {
+          resultsDiv.innerHTML = 'Error fetching results.';
+          console.error(error);
+        });
+    }
+    
+    // YouTube IFrame API 콜백: API 스크립트가 로드된 후 호출됨.
+    function onYouTubeIframeAPIReady() {
+      // 초기 생성 시 아무 영상 없이 빈 플레이어를 생성합니다.
+      player = new YT.Player('player', {
+        height: '450',
+        width: '100%',
+        videoId: '', // 빈 videoId
+        playerVars: {
+          'autoplay': 0,
+          'controls': 1
+        }
+      });
+    }
+    
+    // 모달 열기: 전달받은 videoId를 플레이어에 로드 후 모달 표시
+    function openModal(videoId) {
+      currentVideoId = videoId;
+      const modal = document.getElementById('modal');
+      // 플레이어가 준비된 상태라면 선택한 영상 로드
+      if (player && typeof player.loadVideoById === 'function') {
+        player.loadVideoById(videoId);
+      }
+      modal.style.display = 'flex';
+    }
+    
+    // 모달 닫기: 플레이어 중지 및 모달 숨김
+    function closeModal() {
+      const modal = document.getElementById('modal');
+      if (player) {
+        player.stopVideo();
+      }
+      modal.style.display = 'none';
+    }
+    
+    // 모달 닫기 버튼 클릭 시 이벤트 연결
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    
+    // 전역 키 이벤트 핸들러 (모달과 그리드 모두 처리)
+    document.addEventListener('keydown', function(event) {
+      const focused = document.activeElement;
+      const modal = document.getElementById('modal');
+      
+      // 모달 열림 상태라면 방향키와 ESC의 기능이 달라집니다.
+      if (modal.style.display === 'flex') {
+        // ESC: 모달 닫기
+        if (event.key === 'Escape') {
+          closeModal();
+          event.preventDefault();
+          return;
+        }
+        // 모달 내에서 방향키 기능: 볼륨 / 5초 이동
+        if (player && typeof player.getVolume === 'function') {
+          if (event.key === 'ArrowUp') {
+            // 볼륨 10 증가 (최대 100)
+            let currentVolume = player.getVolume();
+            player.setVolume(Math.min(currentVolume + 10, 100));
+            event.preventDefault();
+            return;
+          } else if (event.key === 'ArrowDown') {
+            // 볼륨 10 감소 (최소 0)
+            let currentVolume = player.getVolume();
+            player.setVolume(Math.max(currentVolume - 10, 0));
+            event.preventDefault();
+            return;
+          } else if (event.key === 'ArrowRight') {
+            // 5초 앞으로 이동
+            const currentTime = player.getCurrentTime();
+            player.seekTo(currentTime + 5, true);
+            event.preventDefault();
+            return;
+          } else if (event.key === 'ArrowLeft') {
+            // 5초 뒤로 이동
+            const currentTime = player.getCurrentTime();
+            player.seekTo(Math.max(currentTime - 5, 0), true);
+            event.preventDefault();
+            return;
+          }
+        }
+        return; // 모달 상태에서는 여기서 종료.
+      }
+      
+      // 모달이 닫힌 상태 (그리드 모드)
+      
+      // OK(Enter) 이벤트: 포커스된 요소의 click() 실행
+      if (event.key === 'Enter') {
+        if (focused && (focused.classList.contains('video-item') || focused.id === 'search-button')) {
+          focused.click();
+          event.preventDefault();
+          return;
+        }
+      }
+      
+      // Back(ESC) 이벤트: 그리드에서 영상 항목을 선택 중이면 검색 입력창으로 포커스
+      if (event.key === 'Escape') {
+        if (focused && focused.classList.contains('video-item')) {
+          document.getElementById('search-input').focus();
+          event.preventDefault();
+          return;
+        }
+      }
+      
+      // 방향키를 이용한 그리드 상의 포커스 이동 (비디오 아이템에 한함)
+      if (focused && focused.classList.contains('video-item')) {
+        switch(event.key) {
+          case 'ArrowUp':
+            if (currentRow > 0) {
+              currentRow--;
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          case 'ArrowDown':
+            if (currentRow < totalRows - 1) {
+              // 다음 행의 요소가 존재할 때만 이동
+              if ((currentRow + 1) * columns + currentCol < totalElements) {
+                currentRow++;
+              }
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          case 'ArrowLeft':
+            if (currentCol > 0) {
+              currentCol--;
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          case 'ArrowRight':
+            if (currentCol < columns - 1) {
+              if (currentRow * columns + currentCol + 1 < totalElements) {
+                currentCol++;
+              }
+              setVideoFocus(currentRow, currentCol);
+              event.preventDefault();
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    });
+    
+    // 지정된 행(row)과 열(col)에 해당하는 비디오 아이템으로 포커스 이동
+    function setVideoFocus(row, col) {
+      const video = document.querySelector(`.video-item[data-row='${row}'][data-col='${col}']`);
+      if (video) {
+        video.focus();
+      }
+    }
+  </script>
+</body>
+</html>

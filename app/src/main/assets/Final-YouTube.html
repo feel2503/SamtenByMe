@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube 이동</title>
+  <!-- Tailwind CSS 로드 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts (Noto Sans KR) 로드 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    /* 페이지 로드 시 기본적으로 화면들을 숨김 */
+    .gate {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen p-4">
+
+  <!-- 최초 방문자용 로그인 안내 페이지 -->
+  <div id="login-gate" class="gate text-center p-8 bg-white shadow-2xl rounded-2xl max-w-sm w-full mx-auto">
+    <svg class="mx-auto h-16 w-16 text-red-600 mb-4" viewBox="0 0 28 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M27.3529 3.109C27.0196 1.88333 26.0451 0.926667 24.798 0.6C22.6216 0 14 0 14 0C14 0 5.37843 0 3.20196 0.6C1.9549 0.926667 0.980392 1.88333 0.647059 3.109C0 5.25333 0 10 0 10C0 10 0 14.7467 0.647059 16.891C0.980392 18.1167 1.9549 19.0733 3.20196 19.4C5.37843 20 14 20 14 20C14 20 22.6216 20 24.798 19.4C26.0451 19.0733 27.0196 18.1167 27.3529 16.891C28 14.7467 28 10 28 10C28 10 28 5.25333 27.3529 3.109ZM11.2 14.28V5.72L18.48 10L11.2 14.28Z"/>
+    </svg>
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">YouTube에 로그인을 하려고 합니다.</h1>
+    <p class="text-gray-600 mb-6 px-4">
+      (중요)Android YouTube App이 설치 되어 있다면, 설정 > 어플리케이션 > YouTube 로 이동하여, 기본으로 설정 메뉴에서 "지원되는 링크열기" 기능을 먼저 비활성화 하여야 합니다
+    </p>
+    <!-- 안드로이드 인텐트 URL을 사용하여 구글 로그인을 크롬에서 열도록 강제 -->
+    <a id="login-button"
+       href="intent://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fm.youtube.com%2F%3Fapp%3Dmobile#Intent;scheme=https;package=com.android.chrome;end"
+       class="inline-block w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105 no-underline">
+      로그인 및 YouTube로 이동
+    </a>
+  </div>
+
+  <!-- 재방문자용 안내 페이지 (이제는 자동 리다이렉션 처리되므로 숨김 처리) -->
+  <div id="redirect-gate" class="gate text-center p-8 bg-white shadow-2xl rounded-2xl max-w-sm w-full mx-auto">
+    <svg class="mx-auto h-16 w-16 text-blue-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <h1 class="text-2xl font-bold text-gray-800 mb-2">다시 오셨군요!</h1>
+    <p class="text-gray-600 mb-6 px-4">
+      아래 버튼을 눌러 YouTube를 브라우저에서 여세요.
+    </p>
+    <!-- 안드로이드 인텐트 URL을 사용하여 유튜브 모바일을 크롬에서 열도록 강제 -->
+    <a href="intent://m.youtube.com/?app=mobile#Intent;scheme=https;package=com.android.chrome;end"
+       class="inline-block w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105 no-underline">
+      YouTube로 바로가기
+    </a>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const loginGate = document.getElementById('login-gate');
+      const loginButton = document.getElementById('login-button');
+
+      // 안드로이드가 아닌 기기(PC, iOS 등)를 위한 경고
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      if (!isAndroid) {
+        const notice = document.createElement('p');
+        notice.textContent = '이 페이지는 안드로이드 기기에 최적화되어 있습니다.';
+        notice.className = 'text-center text-sm text-yellow-600 font-semibold absolute top-5 left-1/2 -translate-x-1/2 w-full px-4';
+        document.body.prepend(notice);
+      }
+      
+      // 로컬 스토리지에서 방문 기록 확인 후, 기록이 있으면 자동으로 리다이렉트
+      if (localStorage.getItem('hasAttemptedLogin') === 'true') {
+        window.location.href = "https://m.youtube.com/?app=mobile";
+      } else {
+        // 방문 기록이 없으면 최초 방문자용 로그인 안내 페이지를 표시함
+        loginGate.style.display = 'block';
+      }
+
+      // 최초 로그인 버튼 클릭 시 방문 기록 저장
+      loginButton.addEventListener('click', function() {
+        localStorage.setItem('hasAttemptedLogin', 'true');
+      });
+    });
+  </script>
+</body>
+</html>

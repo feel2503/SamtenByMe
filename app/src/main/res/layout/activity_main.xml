@@ -17,35 +17,35 @@
         tools:ignore="UselessParent">
 
 
-        <com.google.android.exoplayer2.ui.StyledPlayerView
-            android:id="@+id/video_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:use_controller="false"
-            android:visibility="visible" />
+<!--        <com.google.android.exoplayer2.ui.StyledPlayerView-->
+<!--            android:id="@+id/video_view"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="match_parent"-->
+<!--            app:use_controller="false"-->
+<!--            android:visibility="visible" />-->
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/constraintlayout"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-            <WebView
-                android:id="@+id/webview_1"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@color/transparent"
-                android:visibility="gone"
-                app:layout_constraintStart_toStartOf="parent"
-                />
+<!--        <androidx.constraintlayout.widget.ConstraintLayout-->
+<!--            android:id="@+id/constraintlayout"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="match_parent">-->
+<!--            <WebView-->
+<!--                android:id="@+id/webview_1"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:background="@color/transparent"-->
+<!--                android:visibility="gone"-->
+<!--                app:layout_constraintStart_toStartOf="parent"-->
+<!--                />-->
 
-            <WebView
-                android:id="@+id/webview_2"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@color/transparent"
-                android:visibility="gone"
-                app:layout_constraintStart_toStartOf="parent"
-                />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+<!--            <WebView-->
+<!--                android:id="@+id/webview_2"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent"-->
+<!--                android:background="@color/transparent"-->
+<!--                android:visibility="gone"-->
+<!--                app:layout_constraintStart_toStartOf="parent"-->
+<!--                />-->
+<!--        </androidx.constraintlayout.widget.ConstraintLayout>-->
 
         <LinearLayout
             android:id="@+id/linear_settings"
@@ -53,18 +53,27 @@
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:orientation="vertical">
-            <Button
-                android:id="@+id/btn_open"
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="10dp"
-                android:layout_gravity="left"
-                android:focusedByDefault="true"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:background="@drawable/bg_round_white"
-                android:textColor="@color/white"
-                android:text="MP4 File 을 선택하세요" />
+                android:orientation="horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:textColor="@color/white"
+                    android:text="사용자 번호"/>
+                <EditText
+                    android:id="@+id/edit_user_num"
+                    android:layout_width="100dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:layout_gravity="center_vertical"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:background="@color/white"/>
+            </LinearLayout>
 
             <CheckBox
                 android:id="@+id/checkbox_url1"
@@ -92,10 +101,75 @@
                 android:layout_height="wrap_content"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
-                android:layout_marginTop="30dp"
                 android:background="@drawable/bg_round_06141f"
                 android:textColor="@color/white"
                 android:text="Web 좌우반전"/>
+
+            <Button
+                android:id="@+id/btn_open"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="10dp"
+                android:layout_gravity="left"
+                android:focusedByDefault="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:background="@drawable/bg_round_white"
+                android:textColor="@color/white"
+                android:text="MP4 File 혹은 HTML 을 선택하세요" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:textColor="@color/white"
+                    android:text="화면 비율"/>
+                <EditText
+                    android:id="@+id/edit_display_rate"
+                    android:layout_width="100dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:layout_gravity="center_vertical"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:background="@color/white"/>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <Button
+                    android:id="@+id/btn_landscape"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:padding="10dp"
+                    android:layout_gravity="left"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:background="@drawable/bg_round_white"
+                    android:textColor="@color/white"
+                    android:text="가로\nLandscape" />
+
+                <Button
+                    android:id="@+id/btn_portrait"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:padding="10dp"
+                    android:layout_gravity="left"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
+                    android:background="@drawable/bg_round_white"
+                    android:textColor="@color/white"
+                    android:text="세로\nPortrait" />
+            </LinearLayout>
         </LinearLayout>
 
     </RelativeLayout>

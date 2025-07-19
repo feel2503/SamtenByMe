@@ -169,6 +169,7 @@ class FileDialog {
                         else {
                             boolean endsWith = fileEndsWith != null ? filename.toLowerCase().endsWith(fileEndsWith) : true;
                             return endsWith || sel.isDirectory();
+
                         }
                     }
                 };
