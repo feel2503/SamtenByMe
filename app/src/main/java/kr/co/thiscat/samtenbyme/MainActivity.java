@@ -12,13 +12,18 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.DocumentsContract;
+import android.provider.OpenableColumns;
 import android.provider.Settings;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
@@ -40,6 +45,7 @@ import com.google.gson.Gson;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -63,8 +69,11 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     private View mControlsView;
 
-
+    private Button mButtonEvent;
     private Button mButtonOpen;
+    private Button mButtonLand;
+    private Button mButtonPort;
+
     private LinearLayout mLinearSettings;
     private CheckBox mCheckUrl1;
     private CheckBox mCheckUrl2;
@@ -87,6 +96,26 @@ public class MainActivity extends AppCompatActivity {
 
     private WebSettings mWebSettings1;
     private WebSettings mWebSettings2;
+
+    private static final int REQ_JSON_CODE = 123;
+    private static final int REQ_MP4_CODE = 124;
+
+    Handler handler = new Handler(Looper.getMainLooper());
+    Runnable task = new Runnable() {
+        @Override
+        public void run() {
+            Log.d("TEST", "1분 뒤 실행됨!");
+            int isLand = mPreferenceUtil.getIntPreference(PreferenceUtil.KEY_VIEW_MODE, 0);
+            Intent intent = new Intent();
+            if(isLand == 0)
+                intent.setClass(getApplicationContext(), FullLandActivity.class);
+            else
+                intent.setClass(getApplicationContext(), FullPortActivity.class);
+            startActivity(intent);
+        }
+    };
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -109,8 +138,15 @@ public class MainActivity extends AppCompatActivity {
 
 
         mLinearSettings = findViewById(R.id.linear_settings);
+        mButtonEvent = findViewById(R.id.btn_event_file);
+        mButtonEvent.setOnClickListener(mOnClickListener);
         mButtonOpen = findViewById(R.id.btn_open);
         mButtonOpen.setOnClickListener(mOnClickListener);
+        mButtonLand = findViewById(R.id.btn_landscape);
+        mButtonLand.setOnClickListener(mOnClickListener);
+        mButtonPort = findViewById(R.id.btn_portrait);
+        mButtonPort.setOnClickListener(mOnClickListener);
+
         mCheckUrl1 = findViewById(R.id.checkbox_url1);
         mCheckUrl1.setOnCheckedChangeListener(mOnCheckedChangedListener);
         mCheckUrl2 = findViewById(R.id.checkbox_url2);
@@ -204,6 +240,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
+
+        handler.postDelayed(task, 60 * 1000);
     }
 
     private void hide() {
@@ -230,6 +268,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        handler.removeCallbacks(task);
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        handler.removeCallbacks(task);
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
     public void onBackPressed() {
         super.onBackPressed();
         if(exoPlayer.isPlaying()){
@@ -247,6 +297,33 @@ public class MainActivity extends AppCompatActivity {
             exoPlayer.stop();
         }
 
+    }
+
+    private void openFile(String fileEndsWith)
+    {
+        File f_ext_files_dir = getExternalFilesDir(null);
+        File file = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        FileDialog fileDialog = new FileDialog(MainActivity.this, file, fileEndsWith);
+        fileDialog.addFileListener(new FileDialog.FileSelectedListener() {
+            @Override
+            public void fileSelected(File file) {
+                //playVideo(Uri.fromFile(file));
+                //prepareExoPlayerFromFileUri(Uri.fromFile(file));
+                String fileName = file.getName();
+                String extension = "";
+                int dotIndex = fileName.lastIndexOf('.');
+                if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
+                    extension = fileName.substring(dotIndex + 1);
+                }
+                if (extension.equalsIgnoreCase("json"))
+                {
+                    String content = readFile(file);
+                    mButtonEvent.setText(fileName);
+                }
+
+            }
+        });
+        fileDialog.showDialog();
     }
 
     private void openFile()
@@ -328,7 +405,7 @@ public class MainActivity extends AppCompatActivity {
                     webView1.setVisibility(View.VISIBLE);
 
                     // LayoutParams를 View에 설정
-                    webView1.setLayoutParams(getLayoutparams(webPageItem.getUrl1()));
+                    webView1.setLayoutParams(Util.getLayoutparams(webPageItem.getUrl1()));
                     webView1.loadUrl(webPageItem.getUrl1().getUrl());
                 }
             }
@@ -345,55 +422,13 @@ public class MainActivity extends AppCompatActivity {
                     webView2.setVisibility(View.VISIBLE);
 
                     // LayoutParams를 View에 설정
-                    webView2.setLayoutParams(getLayoutparams(webPageItem.getUrl2()));
+                    webView2.setLayoutParams(Util.getLayoutparams(webPageItem.getUrl2()));
                     webView2.loadUrl(webPageItem.getUrl2().getUrl());
                 }
             }
 
         }
     }
-
-    private ConstraintLayout.LayoutParams getLayoutparams(Webpage webpage)
-    {
-        ConstraintLayout.LayoutParams layoutParams = new ConstraintLayout.LayoutParams(
-                0, // width: 0dp
-                ConstraintLayout.LayoutParams.MATCH_PARENT // height: match_parent
-        );
-
-        // Constraint 속성 정의
-        layoutParams.matchConstraintPercentWidth = getPercentValue(webpage.getWidth()); // app:layout_constraintWidth_percent="0.3"
-        if(webpage.getPosition().equalsIgnoreCase("left"))
-        {
-            layoutParams.startToStart = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 시작과 맞춤
-            layoutParams.topToTop = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 위쪽
-            layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 아래쪽
-        }
-        else if(webpage.getPosition().equalsIgnoreCase("right"))
-        {
-            layoutParams.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 오른쪽 끝
-            layoutParams.topToTop = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 위쪽
-            layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 아래쪽
-        }
-        else
-        {
-            layoutParams.startToStart = ConstraintLayout.LayoutParams.PARENT_ID; // 부모 시작과 맞춤
-            layoutParams.endToEnd = ConstraintLayout.LayoutParams.PARENT_ID;     // 부모 끝과 맞춤
-            layoutParams.topToTop = ConstraintLayout.LayoutParams.PARENT_ID;     // 부모 위쪽과 맞춤
-            layoutParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID;
-        }
-
-        return layoutParams;
-    }
-
-    private float getPercentValue(int value){
-        float result = (float)value/ 100.f;
-        if(result > 1.0f)
-            result = 1.0f;
-        else if(result < 0.0f)
-            result = 0.0f;
-        return result;
-    }
-
 
     private void readDefaultConfig()
     {
@@ -435,27 +470,131 @@ public class MainActivity extends AppCompatActivity {
         return strBuildel.toString();
     }
 
+    public String readFile(File file)
+    {
+        if(file == null || !file.exists())
+            return null;
+
+        StringBuilder strBuildel = new StringBuilder();
+        try
+        {
+            int fileLength = (int)file.length();
+            char[] buff = new char[fileLength];
+
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            br.read(buff);
+            strBuildel.append(buff);
+            br.close();
+        }
+        catch (FileNotFoundException fe)
+        {
+            fe.printStackTrace();
+        }
+        catch (IOException ie)
+        {
+            ie.printStackTrace();
+        }
+        return strBuildel.toString();
+    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if(requestCode == 1 && resultCode == Activity.RESULT_OK)
-        {
+        if (requestCode == 1 && resultCode == Activity.RESULT_OK) {
             mButtonOpen.setVisibility(View.GONE);
 
             Uri videoUri = data.getData();
             playVideo(videoUri);
+        } else if (requestCode == REQ_JSON_CODE && resultCode == Activity.RESULT_OK) {
+            Uri fileUri = data.getData();
+            //FileData fileData = FileUtil.readFileDataFromUri(getContentResolver(), fileUri);
+            String fileName = getFileNameFromUri(fileUri);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mButtonEvent.setText(fileName);
+                }
+            });
+
+            int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getContentResolver().takePersistableUriPermission(fileUri, flags);
+            mPreferenceUtil.putStringPrefrence(PreferenceUtil.KEY_CONTENT_JSON, fileUri.toString());
+        } else if (requestCode == REQ_MP4_CODE && resultCode == Activity.RESULT_OK) {
+            Uri mp4Uri = data.getData();
+            //FileData fileData = FileUtil.readFileDataFromUri(getContentResolver(), fileUri);
+            String fileName = getFileNameFromUri(mp4Uri);
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mButtonOpen.setText(fileName);
+                }
+            });
+            int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            getContentResolver().takePersistableUriPermission(mp4Uri, flags);
+            mPreferenceUtil.putStringPrefrence(PreferenceUtil.KEY_CONTENT_MP4, mp4Uri.toString());
         }
+    }
+
+    private String getFileNameFromUri(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    result = cursor.getString(nameIndex);
+                }
+            }
+        }
+
+        if (result == null) {
+            // content:// 가 아닌 경우 (ex: file://)
+            result = uri.getLastPathSegment();
+        }
+
+        return result;
     }
 
     private View.OnClickListener mOnClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             if(v.getId() == R.id.btn_open){
-                openFile();
-            }
+                //openFile();
+                Intent intent = new Intent();
+                intent.setType("video/*");
+                intent.setAction(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
 
+                startActivityForResult(intent, REQ_MP4_CODE);
+            }
+            else if(v.getId() == R.id.btn_portrait)
+            {
+                mPreferenceUtil.putIntPreference(PreferenceUtil.KEY_VIEW_MODE, 1);
+
+                Intent intent = new Intent();
+                intent.setClass(getApplicationContext(), FullPortActivity.class);
+                startActivity(intent);
+            }
+            else if(v.getId() == R.id.btn_landscape)
+            {
+                mPreferenceUtil.putIntPreference(PreferenceUtil.KEY_VIEW_MODE, 0);
+
+                Intent intent = new Intent();
+                intent.setClass(getApplicationContext(), FullLandActivity.class);
+                startActivity(intent);
+            }
+            else if(v.getId() == R.id.btn_event_file)
+            {
+                Intent intent = new Intent();
+                //intent.setType("*/*");
+                intent.setType("application/json");
+                intent.setAction(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+
+                startActivityForResult(intent, REQ_JSON_CODE);
+            }
         }
     };
 

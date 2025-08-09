@@ -59,7 +59,7 @@ class FileDialog {
             initialPath = Environment.getExternalStorageDirectory();
 
         String sd = Environment.getExternalStorageState();
-        load();
+        //load();
 
         //getSDCardPath();
         getAllStoragePaths();

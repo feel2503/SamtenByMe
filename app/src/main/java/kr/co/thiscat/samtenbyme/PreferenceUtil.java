@@ -12,6 +12,9 @@ public class PreferenceUtil
     public static final String KEY_SHOW_URL1 = "Show URL 1";
     public static final String KEY_SHOW_URL2 = "Show URL 2";
     public static final String KEY_REVERSE = "Reverse View";
+    public static final String KEY_CONTENT_JSON = "Content Json";
+    public static final String KEY_CONTENT_MP4 = "Content MP4";
+    public static final String KEY_VIEW_MODE = "View Mode";
 
     public PreferenceUtil(Context context)
     {
