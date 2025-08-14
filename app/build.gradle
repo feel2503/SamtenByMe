@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId "kr.co.thiscat.samtenbyme"
-        minSdk 30
+        minSdk 29
         targetSdk 31
         versionCode AppVersionCode
         versionName AppVersionName
