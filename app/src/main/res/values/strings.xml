@@ -1,8 +1,20 @@
 <resources>
-    <string name="app_name">SamtenByMe</string>
+    <string name="app_name">signageCAT</string>
     <string name="title_activity_main">MainActivity</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="title_activity_full_port">FullPortActivity</string>
     <string name="title_activity_full_land">FullLandActivity</string>
+
+
+    <string name="select_event_config">이벤트 설정 File 을 선택하세요</string>
+    <string name="select_mp4">MP4 File 을 선택하세요</string>
+    <string name="show_url1">URL1 보이기</string>
+    <string name="show_url2">URL2 보이기</string>
+    <string name="web_reverse">Web 좌우반전</string>
+    <string name="mode_landscape">가로모드</string>
+    <string name="mode_portrait">세로모드</string>
+    <string name="reset">초기화</string>
+
+
 </resources>

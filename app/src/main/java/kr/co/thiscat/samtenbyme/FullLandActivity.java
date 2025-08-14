@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -17,8 +18,16 @@ import android.webkit.WebViewClient;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
+import com.google.android.exoplayer2.source.DefaultMediaSourceFactory;
+import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.gson.Gson;
+
+import org.json.JSONArray;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import kr.co.thiscat.samtenbyme.databinding.ActivityFullLandBinding;
 
@@ -60,13 +69,15 @@ public class FullLandActivity extends AppCompatActivity {
 
         initUi();
         readConfig();
-        viewContent();
-        playVideo();
+//        viewContent();
+//        playVideo();
     }
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
+//        viewContent();
+//        playVideo();
     }
 
     private void hide() {
@@ -121,9 +132,11 @@ public class FullLandActivity extends AppCompatActivity {
         mWebSettings1.setSupportZoom(true); // 화면 줌 사용 여부
         mWebSettings1.setBuiltInZoomControls(true); //화면 확대 축소 사용 여부
         mWebSettings1.setDisplayZoomControls(true); //화면 확대 축소시, webview에서 확대/축소 컨트롤 표시 여부
-        mWebSettings1.setCacheMode(WebSettings.LOAD_NO_CACHE); // 브라우저 캐시 사용 재정의 value : LOAD_DEFAULT, LOAD_NORMAL, LOAD_CACHE_ELSE_NETWORK, LOAD_NO_CACHE, or LOAD_CACHE_ONLY
+        mWebSettings1.setCacheMode(WebSettings.LOAD_DEFAULT); // 브라우저 캐시 사용 재정의 value : LOAD_DEFAULT, LOAD_NORMAL, LOAD_CACHE_ELSE_NETWORK, LOAD_NO_CACHE, or LOAD_CACHE_ONLY
         mWebSettings1.setDefaultFixedFontSize(14); //기본 고정 글꼴 크기, value : 1~72 사이의 숫자
         mWebSettings1.setMediaPlaybackRequiresUserGesture(false);
+        mWebSettings1.setDomStorageEnabled(true);
+
 
 
         // HTML 로드
@@ -152,9 +165,26 @@ public class FullLandActivity extends AppCompatActivity {
         mWebSettings2.setSupportZoom(true); // 화면 줌 사용 여부
         mWebSettings2.setBuiltInZoomControls(true); //화면 확대 축소 사용 여부
         mWebSettings2.setDisplayZoomControls(true); //화면 확대 축소시, webview에서 확대/축소 컨트롤 표시 여부
-        mWebSettings2.setCacheMode(WebSettings.LOAD_NO_CACHE); // 브라우저 캐시 사용 재정의 value : LOAD_DEFAULT, LOAD_NORMAL, LOAD_CACHE_ELSE_NETWORK, LOAD_NO_CACHE, or LOAD_CACHE_ONLY
+        mWebSettings2.setCacheMode(WebSettings.LOAD_DEFAULT); // 브라우저 캐시 사용 재정의 value : LOAD_DEFAULT, LOAD_NORMAL, LOAD_CACHE_ELSE_NETWORK, LOAD_NO_CACHE, or LOAD_CACHE_ONLY
         mWebSettings2.setDefaultFixedFontSize(14); //기본 고정 글꼴 크기, value : 1~72 사이의 숫자
         mWebSettings2.setMediaPlaybackRequiresUserGesture(false);
+        mWebSettings2.setDomStorageEnabled(true);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        viewContent();
+        playVideo();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if(exoPlayer.isPlaying()){
+            exoPlayer.stop();
+            exoPlayer = null;
+        }
     }
 
     private void playVideo()
@@ -162,14 +192,47 @@ public class FullLandActivity extends AppCompatActivity {
         String strUri = mPreferenceUtil.getStringPreference(PreferenceUtil.KEY_CONTENT_MP4);
         if(strUri == null || strUri.length() < 1)
             return;
-        Uri uri = Uri.parse(strUri);
+        if(strUri.startsWith("["))
+        {
+            List<Uri> uris = getSavedUris(strUri);
+            MediaSource.Factory mediaSourceFactory =
+                    new DefaultMediaSourceFactory(getApplicationContext());
 
-        MediaItem mediaItem = MediaItem.fromUri(uri);
-        exoPlayer.setMediaItem(mediaItem);
+            ConcatenatingMediaSource concatenatedSource = new ConcatenatingMediaSource();
+            for (Uri uri : uris) {
+                MediaItem mediaItem = MediaItem.fromUri(uri);
+                MediaSource mediaSource = mediaSourceFactory.createMediaSource(mediaItem);
+                concatenatedSource.addMediaSource(mediaSource);
+            }
+            exoPlayer.setMediaSource(concatenatedSource);
+        }
+        else {
+            Uri uri = Uri.parse(strUri);
+
+            MediaItem mediaItem = MediaItem.fromUri(uri);
+            exoPlayer.setMediaItem(mediaItem);
+            //exoPlayer.setVolume((runEvent.getVolumeValue()*0.1f));
+        }
+
         exoPlayer.setRepeatMode(ExoPlayer.REPEAT_MODE_ALL);
-        //exoPlayer.setVolume((runEvent.getVolumeValue()*0.1f));
         exoPlayer.prepare();
-        exoPlayer.play(); //자동으로 로딩완료까지 기다렸다가 재생함
+        exoPlayer.play();
+    }
+
+    private List<Uri> getSavedUris(String uriJson) {
+        List<Uri> uris = new ArrayList<>();
+
+        if (uriJson != null) {
+            try {
+                JSONArray uriArray = new JSONArray(uriJson);
+                for (int i = 0; i < uriArray.length(); i++) {
+                    uris.add(Uri.parse(uriArray.getString(i)));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return uris;
     }
 
     Player.Listener mPlayerListener = new Player.Listener() {
@@ -187,10 +250,13 @@ public class FullLandActivity extends AppCompatActivity {
     private void readConfig()
     {
         String strUri = mPreferenceUtil.getStringPreference(PreferenceUtil.KEY_CONTENT_JSON);
-        Uri uri = Uri.parse(strUri);
-        FileData fileData = Util.readFileDataFromUri(getContentResolver(), uri);
-        Gson gson = new Gson();
-        webPageItem = gson.fromJson(fileData.content, WebPageItem.class);
+        if(strUri != null && strUri.length() > 0){
+            Uri uri = Uri.parse(strUri);
+            FileData fileData = Util.readFileDataFromUri(getContentResolver(), uri);
+            Gson gson = new Gson();
+            webPageItem = gson.fromJson(fileData.content, WebPageItem.class);
+        }
+
     }
 
     private void viewContent()
@@ -199,6 +265,7 @@ public class FullLandActivity extends AppCompatActivity {
         {
             if(webPageItem.getUrl1() != null && mIsShowUrl1)
             {
+                Log.d("AAAA", "if(webPageItem.getUrl1() != null && mIsShowUrl1)");
                 if(webPageItem.getUrl1().getUrl() != null && webPageItem.getUrl1().url.length() > 0)
                 {
 
@@ -216,6 +283,7 @@ public class FullLandActivity extends AppCompatActivity {
 
             if(webPageItem.getUrl2() != null && mIsShowUrl2)
             {
+                Log.d("AAAA", "if(webPageItem.getUrl2() != null && mIsShowUrl2)");
                 if(webPageItem.getUrl2().getUrl() != null && webPageItem.getUrl2().getUrl().length() > 0)
                 {
                     if(webPageItem.getUrl2().getUrl().startsWith("https://www.youtube.com"))

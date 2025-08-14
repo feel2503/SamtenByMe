@@ -9,6 +9,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
@@ -16,6 +18,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,6 +38,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.exoplayer2.ExoPlayer;
@@ -43,12 +47,16 @@ import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.gson.Gson;
 
+import org.json.JSONArray;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import kr.co.thiscat.samtenbyme.databinding.ActivityMainBinding;
 import kr.co.thiscat.samtenbyme.fileselector.OnFileSelectedListener;
@@ -73,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
     private Button mButtonOpen;
     private Button mButtonLand;
     private Button mButtonPort;
+    private Button mButtonReset;
 
     private LinearLayout mLinearSettings;
     private CheckBox mCheckUrl1;
@@ -97,6 +106,8 @@ public class MainActivity extends AppCompatActivity {
     private WebSettings mWebSettings1;
     private WebSettings mWebSettings2;
 
+    private TextView mTextTimer;
+
     private static final int REQ_JSON_CODE = 123;
     private static final int REQ_MP4_CODE = 124;
 
@@ -106,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
         public void run() {
             Log.d("TEST", "1분 뒤 실행됨!");
             int isLand = mPreferenceUtil.getIntPreference(PreferenceUtil.KEY_VIEW_MODE, 0);
+
             Intent intent = new Intent();
             if(isLand == 0)
                 intent.setClass(getApplicationContext(), FullLandActivity.class);
@@ -115,6 +127,25 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    CountDownTimer mCountdownTimer = new CountDownTimer(60000, 1000) {
+        @Override
+        public void onTick(long millisUntilFinished) {
+            long sec = (millisUntilFinished / 1000) % 60;
+            mTextTimer.setText(String.valueOf(""+sec));
+        }
+
+        @Override
+        public void onFinish() {
+            int isLand = mPreferenceUtil.getIntPreference(PreferenceUtil.KEY_VIEW_MODE, 0);
+
+            Intent intent = new Intent();
+            if(isLand == 0)
+                intent.setClass(getApplicationContext(), FullLandActivity.class);
+            else
+                intent.setClass(getApplicationContext(), FullPortActivity.class);
+            startActivity(intent);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -146,6 +177,10 @@ public class MainActivity extends AppCompatActivity {
         mButtonLand.setOnClickListener(mOnClickListener);
         mButtonPort = findViewById(R.id.btn_portrait);
         mButtonPort.setOnClickListener(mOnClickListener);
+        mButtonReset = findViewById(R.id.btn_reset);
+        mButtonReset.setOnClickListener(mOnClickListener);
+
+        mTextTimer = findViewById(R.id.text_timer);
 
         mCheckUrl1 = findViewById(R.id.checkbox_url1);
         mCheckUrl1.setOnCheckedChangeListener(mOnCheckedChangedListener);
@@ -160,6 +195,7 @@ public class MainActivity extends AppCompatActivity {
         mCheckUrl1.setChecked(mIsShowUrl1);
         mCheckUrl2.setChecked(mIsShowUrl2);
         mCheckReverse.setChecked(mIsReverse);
+
 
         webView1 = findViewById(R.id.webview_1);
 
@@ -183,14 +219,7 @@ public class MainActivity extends AppCompatActivity {
         mWebSettings1.setDefaultFixedFontSize(14); //기본 고정 글꼴 크기, value : 1~72 사이의 숫자
         mWebSettings1.setMediaPlaybackRequiresUserGesture(false);
 
-
-        // HTML 로드
-//        String htmlContent = "<html><body style='background-color:transparent; margin:0; padding:0;'>"
-//                + "<h1 style='color:blue;'>Hello, Transparent WebView!</h1>"
-//                + "</body></html>";
-//        webView1.loadData(htmlContent, "text/html", "UTF-8");
         webView1.setVisibility(View.VISIBLE);
-
 
         webView2 = findViewById(R.id.webview_2);
 
@@ -215,7 +244,7 @@ public class MainActivity extends AppCompatActivity {
         mWebSettings2.setMediaPlaybackRequiresUserGesture(false);
 
 
-        readDefaultConfig();
+        //readDefaultConfig();
 
         String[] REQUIRED_PERMISSIONS;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -228,20 +257,62 @@ public class MainActivity extends AppCompatActivity {
         mPermUtil = new PermissionUtil(MainActivity.this, REQUIRED_PERMISSIONS);
         mPermUtil.onSetPermission();
 
-//        if (!Environment.isExternalStorageManager()) {
-//            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-//            intent.setData(Uri.parse("package:" + getPackageName()));
-//            startActivity(intent);
-//        }
+        initHistory();
 
 
+    }
+
+    private void initHistory()
+    {
+        String jsonUri = mPreferenceUtil.getStringPreference(PreferenceUtil.KEY_CONTENT_JSON);
+        if(jsonUri != null && jsonUri.length() > 1){
+            Uri uri = Uri.parse(jsonUri);
+            String fileName = getFileNameFromUri(uri);
+            setButtonTitle(mButtonEvent, fileName);
+        }
+
+        String mp4Uri = mPreferenceUtil.getStringPreference(PreferenceUtil.KEY_CONTENT_MP4);
+        if(mp4Uri != null && mp4Uri.length() > 1){
+            String fileName = "";
+            if(mp4Uri.startsWith("[")) {
+                List<Uri> uris = new ArrayList<>();
+
+                try {
+                    JSONArray uriArray = new JSONArray(mp4Uri);
+                    int count = uriArray.length();
+                    fileName = count + " 개가 선택 되었습니다.";
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }else{
+                Uri uri = Uri.parse(mp4Uri);
+                fileName = getFileNameFromUri(uri);
+            }
+            setButtonTitle(mButtonOpen, fileName);
+        }
+    }
+    private void setButtonTitle(final Button btn, final String title){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                btn.setText(title);
+            }
+        });
     }
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
 
-        handler.postDelayed(task, 60 * 1000);
+        //handler.postDelayed(task, 60 * 1000);
+        mCountdownTimer.start();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mTextTimer.setText("60");
     }
 
     private void hide() {
@@ -268,15 +339,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        handler.removeCallbacks(task);
-        return super.onTouchEvent(event);
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        mCountdownTimer.cancel();
+        return super.dispatchKeyEvent(event);
     }
 
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        handler.removeCallbacks(task);
-        return super.onKeyDown(keyCode, event);
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        mCountdownTimer.cancel();
+        return super.dispatchTouchEvent(ev);
     }
 
     @Override
@@ -497,6 +568,22 @@ public class MainActivity extends AppCompatActivity {
         return strBuildel.toString();
     }
 
+    private void resetConfig()
+    {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mButtonEvent.setText(getResources().getString(R.string.select_event_config));
+                mButtonOpen.setText(getResources().getString(R.string.select_mp4));
+                mCheckUrl1.setChecked(false);
+                mCheckUrl2.setChecked(false);
+                mCheckReverse.setChecked(false);
+            }
+        });
+        mPreferenceUtil.clearData();
+
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -511,30 +598,41 @@ public class MainActivity extends AppCompatActivity {
             //FileData fileData = FileUtil.readFileDataFromUri(getContentResolver(), fileUri);
             String fileName = getFileNameFromUri(fileUri);
 
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mButtonEvent.setText(fileName);
-                }
-            });
+            setButtonTitle(mButtonEvent, fileName);
 
             int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             getContentResolver().takePersistableUriPermission(fileUri, flags);
             mPreferenceUtil.putStringPrefrence(PreferenceUtil.KEY_CONTENT_JSON, fileUri.toString());
         } else if (requestCode == REQ_MP4_CODE && resultCode == Activity.RESULT_OK) {
-            Uri mp4Uri = data.getData();
-            //FileData fileData = FileUtil.readFileDataFromUri(getContentResolver(), fileUri);
-            String fileName = getFileNameFromUri(mp4Uri);
+            if (data.getClipData() != null) { // 여러 개 선택
+                ClipData clipData = data.getClipData();
+                int count = clipData.getItemCount();
+                String title = count + " 개가 선택 되었습니다.";
+                setButtonTitle(mButtonOpen, title);
 
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    mButtonOpen.setText(fileName);
+                int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                ContentResolver contentResolver = getContentResolver();
+                JSONArray uriArray = new JSONArray();
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    Uri uri = clipData.getItemAt(i).getUri();
+                    contentResolver.takePersistableUriPermission(uri, flags);
+
+                    uriArray.put(uri.toString());
+                    // uri로 파일 읽기 처리
                 }
-            });
-            int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            getContentResolver().takePersistableUriPermission(mp4Uri, flags);
-            mPreferenceUtil.putStringPrefrence(PreferenceUtil.KEY_CONTENT_MP4, mp4Uri.toString());
+                mPreferenceUtil.putStringPrefrence(PreferenceUtil.KEY_CONTENT_MP4, uriArray.toString());
+
+            } else if (data.getData() != null) { // 하나만 선택
+                Uri mp4Uri = data.getData();
+                //FileData fileData = FileUtil.readFileDataFromUri(getContentResolver(), fileUri);
+                String fileName = getFileNameFromUri(mp4Uri);
+
+                setButtonTitle(mButtonOpen, fileName);
+
+                int flags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                getContentResolver().takePersistableUriPermission(mp4Uri, flags);
+                mPreferenceUtil.putStringPrefrence(PreferenceUtil.KEY_CONTENT_MP4, mp4Uri.toString());
+            }
         }
     }
 
@@ -557,6 +655,8 @@ public class MainActivity extends AppCompatActivity {
         return result;
     }
 
+
+
     private View.OnClickListener mOnClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
@@ -566,6 +666,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.setType("video/*");
                 intent.setAction(Intent.ACTION_OPEN_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
 
                 startActivityForResult(intent, REQ_MP4_CODE);
             }
@@ -576,6 +677,8 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent();
                 intent.setClass(getApplicationContext(), FullPortActivity.class);
                 startActivity(intent);
+
+                mCountdownTimer.cancel();
             }
             else if(v.getId() == R.id.btn_landscape)
             {
@@ -584,6 +687,8 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent();
                 intent.setClass(getApplicationContext(), FullLandActivity.class);
                 startActivity(intent);
+
+                mCountdownTimer.cancel();
             }
             else if(v.getId() == R.id.btn_event_file)
             {
@@ -594,6 +699,10 @@ public class MainActivity extends AppCompatActivity {
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
                 startActivityForResult(intent, REQ_JSON_CODE);
+            }
+            else if(v.getId() == R.id.btn_reset)
+            {
+                resetConfig();
             }
         }
     };
