@@ -32,6 +32,7 @@
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="false"
             android:label="@string/title_activity_full_land"
+            android:hardwareAccelerated="true"
             android:screenOrientation="landscape"
             android:theme="@style/Theme.SamtenByMe.Fullscreen" />
         <activity
