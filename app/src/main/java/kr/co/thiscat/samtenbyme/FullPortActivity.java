@@ -8,6 +8,8 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.Guideline;
 
 import android.content.pm.ActivityInfo;
+import android.graphics.Matrix;
+import android.graphics.RectF;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -15,6 +17,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -32,7 +35,9 @@ import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
 import com.google.android.exoplayer2.source.DefaultMediaSourceFactory;
 import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.ui.AspectRatioFrameLayout;
 import com.google.android.exoplayer2.ui.StyledPlayerView;
+import com.google.android.exoplayer2.video.VideoSize;
 import com.google.gson.Gson;
 
 import org.json.JSONArray;
@@ -70,6 +75,8 @@ public class FullPortActivity extends AppCompatActivity {
     private Guideline guideline1;
     private Guideline guideline2;
 
+    private boolean isScrollAble = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -102,9 +109,18 @@ public class FullPortActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if(exoPlayer.isPlaying()){
+            exoPlayer.stop();
+            exoPlayer = null;
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(exoPlayer.isPlaying()){
+        if(exoPlayer != null && exoPlayer.isPlaying()){
             exoPlayer.stop();
             exoPlayer = null;
         }
@@ -132,6 +148,35 @@ public class FullPortActivity extends AppCompatActivity {
         }
     }
 
+    private void applyTextureRotation() {
+        View sv = playerView.getVideoSurfaceView();
+        if (!(sv instanceof TextureView)) return;
+
+        TextureView tv = (TextureView) sv;
+
+        int w = tv.getWidth();
+        int h = tv.getHeight();
+        if (w == 0 || h == 0) return;
+
+        // 1) 가운데 기준 90도 회전
+        Matrix rotate = new Matrix();
+        float px = w / 2f, py = h / 2f;
+        rotate.postRotate(-90f, px, py);
+
+        // 2) 회전된 사각형을 뷰 경계(0,w)x(0,h)에 '크롭 없이' 맞춤
+        RectF viewRect = new RectF(0, 0, w, h);
+        RectF rotatedRect = new RectF();
+        rotate.mapRect(rotatedRect, viewRect);
+
+        Matrix fit = new Matrix();
+        // CENTER = 전체가 보이도록(=letterbox/pillarbox 허용), 잘림 없음
+        fit.setRectToRect(rotatedRect, viewRect, Matrix.ScaleToFit.CENTER);
+
+        rotate.postConcat(fit);
+        tv.setTransform(rotate);
+        tv.requestLayout();
+    }
+
     private void initUi()
     {
         mIsReverse = mPreferenceUtil.getBooleanPreference(PreferenceUtil.KEY_REVERSE);
@@ -142,7 +187,17 @@ public class FullPortActivity extends AppCompatActivity {
         exoPlayer = new ExoPlayer.Builder(getApplicationContext()).build();
         exoPlayer.addListener(mPlayerListener);
         playerView.setPlayer(exoPlayer);
-        exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT);
+
+        //exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT);
+        //playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+
+        playerView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override public void onLayoutChange(View v, int left, int top, int right, int bottom,
+                                                 int oldLeft, int oldTop, int oldRight, int oldBottom) {
+                applyTextureRotation();
+            }
+        });
 
         container1 = findViewById(R.id.content_controls1);
         container2 = findViewById(R.id.content_controls2);
@@ -157,7 +212,22 @@ public class FullPortActivity extends AppCompatActivity {
         if(mIsReverse)
             webView1.setScaleX(-1);
 
-        webView1.setWebViewClient(new WebViewClient()); // 현재 앱을 나가서 새로운 브라우저를 열지 않도록 함.
+        webView1.setWebViewClient(new WebViewClient(){
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                view.scrollTo(0,0);
+                view.evaluateJavascript("window.scrollTo(0,0);", null);
+
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        //view.scrollTo(0,0);
+                        isScrollAble = true;
+                    }
+                }, 1000);
+            }
+        }); // 현재 앱을 나가서 새로운 브라우저를 열지 않도록 함.
 
         mWebSettings1 = webView1.getSettings(); // 웹뷰에서 webSettings를 사용할 수 있도록 함.
         mWebSettings1.setJavaScriptEnabled(true); //웹뷰에서 javascript를 사용하도록 설정
@@ -174,6 +244,13 @@ public class FullPortActivity extends AppCompatActivity {
         mWebSettings1.setDomStorageEnabled(true);
 
         webView1.setVisibility(View.VISIBLE);
+        webView1.setOnScrollChangeListener(new View.OnScrollChangeListener() {
+            @Override
+            public void onScrollChange(View v, int scrollX, int scrollY, int oldScrollX, int oldScrollY) {
+                if(!isScrollAble)
+                    webView1.scrollTo(0,0);
+            }
+        });
 
         webView2 = findViewById(R.id.webview_2);
 
@@ -212,6 +289,8 @@ public class FullPortActivity extends AppCompatActivity {
 //        webView1.getSettings().setJavaScriptEnabled(true);
 //        webView1.loadUrl("https://www.google.com"); // 원하는 URL
     }
+
+
 
     private void fitWebView(ConstraintLayout container, WebView webView) {
         int fullW = container.getWidth();
@@ -358,5 +437,16 @@ public class FullPortActivity extends AppCompatActivity {
         public void onIsPlayingChanged(boolean isPlaying) {
             Player.Listener.super.onIsPlayingChanged(isPlaying);
         }
+
+        @Override
+        public void onVideoSizeChanged(VideoSize videoSize) {
+            applyTextureRotation();
+        }
+
+        @Override
+        public void onSurfaceSizeChanged(int width, int height) {
+            applyTextureRotation();
+        }
+
     };
 }

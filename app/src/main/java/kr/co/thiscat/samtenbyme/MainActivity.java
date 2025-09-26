@@ -110,6 +110,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int REQ_JSON_CODE = 123;
     private static final int REQ_MP4_CODE = 124;
+    private static final int REQ_FULL_LAND_ACTIVITY = 125;
+    private static final int REQ_FULL_PORT_ACTIVITY = 126;
 
     Handler handler = new Handler(Looper.getMainLooper());
     Runnable task = new Runnable() {
@@ -123,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.setClass(getApplicationContext(), FullLandActivity.class);
             else
                 intent.setClass(getApplicationContext(), FullPortActivity.class);
-            startActivity(intent);
+            startActivityForResult(intent, REQ_FULL_LAND_ACTIVITY);
         }
     };
 
@@ -143,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.setClass(getApplicationContext(), FullLandActivity.class);
             else
                 intent.setClass(getApplicationContext(), FullPortActivity.class);
-            startActivity(intent);
+            startActivityForResult(intent, REQ_FULL_LAND_ACTIVITY);
         }
     };
 
@@ -633,6 +635,9 @@ public class MainActivity extends AppCompatActivity {
                 getContentResolver().takePersistableUriPermission(mp4Uri, flags);
                 mPreferenceUtil.putStringPrefrence(PreferenceUtil.KEY_CONTENT_MP4, mp4Uri.toString());
             }
+
+        }else if(requestCode == REQ_FULL_LAND_ACTIVITY){
+            mCountdownTimer.start();
         }
     }
 
@@ -676,7 +681,7 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent intent = new Intent();
                 intent.setClass(getApplicationContext(), FullPortActivity.class);
-                startActivity(intent);
+                startActivityForResult(intent, REQ_FULL_LAND_ACTIVITY);
 
                 mCountdownTimer.cancel();
             }
@@ -686,7 +691,7 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent intent = new Intent();
                 intent.setClass(getApplicationContext(), FullLandActivity.class);
-                startActivity(intent);
+                startActivityForResult(intent, REQ_FULL_LAND_ACTIVITY);
 
                 mCountdownTimer.cancel();
             }

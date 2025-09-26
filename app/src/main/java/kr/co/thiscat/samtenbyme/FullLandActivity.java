@@ -179,9 +179,18 @@ public class FullLandActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        if(exoPlayer.isPlaying()){
+            exoPlayer.stop();
+            exoPlayer = null;
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(exoPlayer.isPlaying()){
+        if(exoPlayer != null && exoPlayer.isPlaying()){
             exoPlayer.stop();
             exoPlayer = null;
         }
