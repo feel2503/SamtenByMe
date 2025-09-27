@@ -158,6 +158,11 @@ public class FullPortActivity extends AppCompatActivity {
         int h = tv.getHeight();
         if (w == 0 || h == 0) return;
 
+        VideoSize videoSize = playerView.getPlayer().getVideoSize();
+
+        int vh = videoSize.height;
+        int vw = videoSize.width;
+
         // 1) 가운데 기준 90도 회전
         Matrix rotate = new Matrix();
         float px = w / 2f, py = h / 2f;
@@ -173,9 +178,57 @@ public class FullPortActivity extends AppCompatActivity {
         fit.setRectToRect(rotatedRect, viewRect, Matrix.ScaleToFit.CENTER);
 
         rotate.postConcat(fit);
+
+        if(vw < vh)
+        {
+            // 3) 추가 축소: 90% (중앙 기준)
+            float scaleX = (float) vw / w;
+            float scaleY = (float) vh / h;
+            float sx = 1.0f;
+            float sy = 1.0f;
+            if(scaleX >= scaleY){
+                sy = scaleY/scaleX;
+            }else{
+                sx = scaleX / scaleY;
+            }
+            rotate.postScale(sx, sy, px, py);
+        }
+
         tv.setTransform(rotate);
         tv.requestLayout();
     }
+
+
+
+    Player.Listener mPlayerListener = new Player.Listener() {
+        @Override
+        public void onEvents(Player player, Player.Events events) {
+            Player.Listener.super.onEvents(player, events);
+        }
+
+        @Override
+        public void onIsPlayingChanged(boolean isPlaying) {
+            Player.Listener.super.onIsPlayingChanged(isPlaying);
+        }
+
+        @Override
+        public void onVideoSizeChanged(VideoSize videoSize) {
+            applyTextureRotation();
+            if(videoSize.height <= videoSize.width)
+                playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            else
+                playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+        }
+
+        @Override
+        public void onSurfaceSizeChanged(int width, int height) {
+            if(height <= width)
+                playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            else
+                playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+        }
+
+    };
 
     private void initUi()
     {
@@ -191,6 +244,7 @@ public class FullPortActivity extends AppCompatActivity {
         //exoPlayer.setVideoScalingMode(C.VIDEO_SCALING_MODE_SCALE_TO_FIT);
         //playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+        //playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
 
         playerView.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override public void onLayoutChange(View v, int left, int top, int right, int bottom,
@@ -427,26 +481,5 @@ public class FullPortActivity extends AppCompatActivity {
         return uris;
     }
 
-    Player.Listener mPlayerListener = new Player.Listener() {
-        @Override
-        public void onEvents(Player player, Player.Events events) {
-            Player.Listener.super.onEvents(player, events);
-        }
 
-        @Override
-        public void onIsPlayingChanged(boolean isPlaying) {
-            Player.Listener.super.onIsPlayingChanged(isPlaying);
-        }
-
-        @Override
-        public void onVideoSizeChanged(VideoSize videoSize) {
-            applyTextureRotation();
-        }
-
-        @Override
-        public void onSurfaceSizeChanged(int width, int height) {
-            applyTextureRotation();
-        }
-
-    };
 }
